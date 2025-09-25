@@ -6,70 +6,162 @@
 {% endblock %}
 
 {% block content %}
-<div class="tryron-container">
-    <div class="main-content">
-        <div class="video-section">
-            <div class="video-container">
-                <video id="video" autoplay muted playsinline></video>
-                <canvas id="canvas"></canvas>
-            </div>
-            <div class="video-controls">
-                <button id="start-camera" class="btn btn-primary">📹 Start Camera</button>
-                <button id="stop-camera" class="btn btn-secondary" disabled>⏹️ Stop Camera</button>
-                <button id="take-photo" class="btn btn-success" disabled>📸 Take Photo</button>
+<div class="tryron-app">
+    <!-- Header Section -->
+    <div class="app-header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <i class="fas fa-magic"></i>
+                Virtual Try-On Studio
+            </h1>
+            <p class="app-subtitle">Experience the future of fashion with AI-powered virtual accessories</p>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="app-container">
+        <!-- Camera Section -->
+        <div class="camera-section">
+            <div class="camera-wrapper">
+                <div class="camera-frame">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+
+                    <!-- Camera Overlay -->
+                    <div class="camera-overlay">
+                        <div class="face-indicator" id="face-indicator">
+                            <div class="face-outline"></div>
+                            <span class="face-text">Position your face here</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="camera-controls">
+                    <button id="start-camera" class="control-btn primary">
+                        <i class="fas fa-video"></i>
+                        <span>Start Camera</span>
+                    </button>
+                    <button id="stop-camera" class="control-btn secondary" disabled>
+                        <i class="fas fa-stop"></i>
+                        <span>Stop</span>
+                    </button>
+                    <button id="take-photo" class="control-btn success" disabled>
+                        <i class="fas fa-camera"></i>
+                        <span>Capture</span>
+                    </button>
+                </div>
             </div>
         </div>
-        
-        <div class="controls-section">
-            <div class="model-selector">
-                <h3>👓 Accessories</h3>
-                <div class="category-tabs">
-                    <button class="tab-btn active" data-category="glasses">Glasses</button>
-                    <button class="tab-btn" data-category="hats">Hats</button>
+
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            <!-- Accessories Panel -->
+            <div class="panel accessories-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-glasses"></i> Accessories</h3>
                 </div>
-                
-                <div class="models-grid" id="models-container">
+
+                <div class="category-selector">
+                    <button class="category-btn active" data-category="glasses">
+                        <i class="fas fa-glasses"></i>
+                        <span>Glasses</span>
+                    </button>
+                    <button class="category-btn" data-category="hats">
+                        <i class="fas fa-hat-cowboy"></i>
+                        <span>Hats</span>
+                    </button>
+                </div>
+
+                <div class="accessories-grid" id="models-container">
                     <!-- Models will be loaded here -->
                 </div>
             </div>
-            
-            <div class="settings-panel">
-                <h3>⚙️ Settings</h3>
-                <div class="setting-group">
-                    <label>Scale: <span id="scale-value">1.0</span></label>
-                    <input type="range" id="scale-slider" min="0.5" max="2" step="0.1" value="1">
+
+            <!-- Settings Panel -->
+            <div class="panel settings-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-sliders-h"></i> Adjustments</h3>
                 </div>
-                <div class="setting-group">
-                    <label>Position X: <span id="pos-x-value">0</span></label>
-                    <input type="range" id="pos-x-slider" min="-50" max="50" step="1" value="0">
-                </div>
-                <div class="setting-group">
-                    <label>Position Y: <span id="pos-y-value">0</span></label>
-                    <input type="range" id="pos-y-slider" min="-50" max="50" step="1" value="0">
+
+                <div class="settings-content">
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                            Scale
+                            <span class="setting-value" id="scale-value">1.0</span>
+                        </label>
+                        <input type="range" id="scale-slider" class="setting-slider" min="0.5" max="2" step="0.1" value="1">
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            <i class="fas fa-arrows-alt-h"></i>
+                            Position X
+                            <span class="setting-value" id="pos-x-value">0</span>
+                        </label>
+                        <input type="range" id="pos-x-slider" class="setting-slider" min="-50" max="50" step="1" value="0">
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            <i class="fas fa-arrows-alt-v"></i>
+                            Position Y
+                            <span class="setting-value" id="pos-y-value">0</span>
+                        </label>
+                        <input type="range" id="pos-y-slider" class="setting-slider" min="-50" max="50" step="1" value="0">
+                    </div>
                 </div>
             </div>
-            
-            <div class="upload-section">
-                <h3>📤 Upload Custom Model</h3>
-                <input type="file" id="model-upload" accept=".glb,.gltf">
-                <input type="text" id="model-name" placeholder="Model Name">
-                <select id="model-category">
-                    <option value="glasses">Glasses</option>
-                    <option value="hats">Hats</option>
-                </select>
-                <button id="upload-btn" class="btn btn-primary">Upload</button>
+
+            <!-- Upload Panel -->
+            <div class="panel upload-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-cloud-upload-alt"></i> Upload Model</h3>
+                </div>
+
+                <div class="upload-content">
+                    <div class="upload-area">
+                        <input type="file" id="model-upload" accept=".glb,.gltf" hidden>
+                        <label for="model-upload" class="upload-label">
+                            <i class="fas fa-plus"></i>
+                            <span>Choose 3D Model</span>
+                            <small>.glb or .gltf files</small>
+                        </label>
+                    </div>
+
+                    <input type="text" id="model-name" class="upload-input" placeholder="Model Name">
+
+                    <select id="model-category" class="upload-select">
+                        <option value="glasses">Glasses</option>
+                        <option value="hats">Hats</option>
+                    </select>
+
+                    <button id="upload-btn" class="upload-btn">
+                        <i class="fas fa-upload"></i>
+                        Upload Model
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="status-bar">
-        <div id="status">Ready to start! Click "Start Camera" to begin.</div>
-        <div id="face-info"></div>
+
+    <!-- Status Bar -->
+    <div class="status-section">
+        <div class="status-item">
+            <i class="fas fa-info-circle"></i>
+            <span id="status">Ready to start! Click "Start Camera" to begin your virtual try-on experience.</span>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-user"></i>
+            <span id="face-info">No face detected</span>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/simple-models.js' %}"></script>
 <script src="{% static 'js/face-tracker.js' %}"></script>
 <script src="{% static 'js/model-loader.js' %}"></script>
 <script src="{% static 'js/tryron-app.js' %}"></script>

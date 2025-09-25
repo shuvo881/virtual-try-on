@@ -84,10 +84,10 @@ class DjangoVirtualTryOnApp {
         document.getElementById('stop-camera').addEventListener('click', () => this.stopCamera());
         document.getElementById('take-photo').addEventListener('click', () => this.takePhoto());
         
-        // Category tabs
-        document.querySelectorAll('.tab-btn').forEach(btn => {
+        // Category buttons (updated for new structure)
+        document.querySelectorAll('.category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const category = e.target.dataset.category;
+                const category = e.currentTarget.dataset.category;
                 this.switchCategory(category);
             });
         });
@@ -128,10 +128,10 @@ class DjangoVirtualTryOnApp {
     }
     
     switchCategory(category) {
-        // Update active tab
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        // Update active category button
+        document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[data-category="${category}"]`).classList.add('active');
-        
+
         // Update models grid
         this.modelLoader.currentCategory = category;
         const container = document.getElementById('models-container');
@@ -141,15 +141,15 @@ class DjangoVirtualTryOnApp {
     async selectModel(model, category) {
         try {
             this.updateStatus(`Loading ${model.name}...`);
-            const threeModel = await this.modelLoader.loadModel(model.file_url);
-            
+            const threeModel = await this.modelLoader.loadModel(model.file_url, model.id);
+
             if (this.currentModels[category]) {
                 this.scene.remove(this.currentModels[category]);
             }
-            
+
             this.currentModels[category] = threeModel;
             this.scene.add(threeModel);
-            
+
             this.updateStatus(`${model.name} loaded successfully!`);
         } catch (error) {
             console.error(`Error loading model:`, error);
@@ -173,7 +173,22 @@ class DjangoVirtualTryOnApp {
                 this.threeCanvas.width = this.video.videoWidth;
                 this.threeCanvas.height = this.video.videoHeight;
                 this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
-                
+
+                // Hide camera overlay with animation
+                const cameraOverlay = document.querySelector('.camera-overlay');
+                if (cameraOverlay) {
+                    cameraOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        cameraOverlay.style.display = 'none';
+                    }, 300);
+                }
+
+                // Add active glow effect to camera frame
+                const cameraFrame = document.querySelector('.camera-frame');
+                if (cameraFrame) {
+                    cameraFrame.classList.add('active');
+                }
+
                 document.getElementById('start-camera').disabled = true;
                 document.getElementById('stop-camera').disabled = false;
                 document.getElementById('take-photo').disabled = false;
@@ -196,15 +211,31 @@ class DjangoVirtualTryOnApp {
         
         this.faceTracker.stopContinuousDetection();
         this.isTracking = false;
-        
+
+        // Show camera overlay again with animation
+        const cameraOverlay = document.querySelector('.camera-overlay');
+        if (cameraOverlay) {
+            cameraOverlay.style.display = 'flex';
+            cameraOverlay.style.opacity = '0';
+            setTimeout(() => {
+                cameraOverlay.style.opacity = '1';
+            }, 100);
+        }
+
+        // Remove active glow effect from camera frame
+        const cameraFrame = document.querySelector('.camera-frame');
+        if (cameraFrame) {
+            cameraFrame.classList.remove('active');
+        }
+
         document.getElementById('start-camera').disabled = false;
         document.getElementById('stop-camera').disabled = true;
         document.getElementById('take-photo').disabled = true;
-        
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.renderer.clear();
-        this.updateStatus('Camera stopped');
-        this.faceInfo.textContent = '';
+        this.updateStatus('Camera stopped. Click "Start Camera" to begin again.');
+        this.faceInfo.textContent = 'No face detected';
     }
     
     startTracking() {
@@ -268,20 +299,21 @@ class DjangoVirtualTryOnApp {
     
     positionModel(model, position, faceWidth) {
         // Convert screen coordinates to 3D world coordinates
-        const x = (position.x / this.canvas.width) * 2 - 1;
-        const y = -((position.y / this.canvas.height) * 2 - 1);
-        const z = position.z;
-        
+        const x = (position.x / this.canvas.width) * 4 - 2;
+        const y = -((position.y / this.canvas.height) * 4 - 2);
+        const z = -2; // Fixed distance from camera
+
         model.position.set(
-            x * 2 + this.settings.positionX * 0.01,
-            y * 2 + this.settings.positionY * 0.01,
+            x + this.settings.positionX * 0.02,
+            y + this.settings.positionY * 0.02,
             z
         );
-        
+
         // Scale based on face width and user settings
-        const scale = (faceWidth / 200) * this.settings.scale;
+        const baseScale = Math.max(faceWidth / 300, 0.5);
+        const scale = baseScale * this.settings.scale;
         model.scale.set(scale, scale, scale);
-        
+
         // Apply face rotation if available
         if (position.rotation !== undefined) {
             model.rotation.z = position.rotation;
@@ -290,11 +322,7 @@ class DjangoVirtualTryOnApp {
     
     displayFaceInfo(landmarks) {
         this.faceInfo.innerHTML = `
-            <strong>Face Detected:</strong><br>
-            👁️ Eyes: (${Math.round(landmarks.left_eye.x)}, ${Math.round(landmarks.left_eye.y)}) - (${Math.round(landmarks.right_eye.x)}, ${Math.round(landmarks.right_eye.y)})<br>
-            👃 Nose: (${Math.round(landmarks.nose_tip.x)}, ${Math.round(landmarks.nose_tip.y)})<br>
-            📏 Face: ${Math.round(landmarks.face_width)}×${Math.round(landmarks.face_height)}px<br>
-            🎯 Confidence: ${(landmarks.confidence * 100).toFixed(1)}%
+            Face detected • Confidence: ${(landmarks.confidence * 100).toFixed(0)}% • Size: ${Math.round(landmarks.face_width)}×${Math.round(landmarks.face_height)}px
         `;
     }
     
@@ -319,17 +347,17 @@ class DjangoVirtualTryOnApp {
         
         try {
             this.updateStatus('Uploading model...');
-            const result = await this.modelLoader.uploadModel(file, name, category);
-            
+            await this.modelLoader.uploadModel(file, name, category);
+
             // Clear form
             fileInput.value = '';
             nameInput.value = '';
-            
+
             // Refresh models grid if current category
             if (category === this.modelLoader.currentCategory) {
                 this.setupModelGrid();
             }
-            
+
             this.updateStatus(`${name} uploaded successfully!`);
         } catch (error) {
             console.error('Upload error:', error);

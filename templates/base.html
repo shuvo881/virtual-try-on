@@ -12,7 +12,7 @@
     
     <!-- Three.js and AR Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/loaders/GLTFLoader.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
     
     <!-- MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -25,19 +25,19 @@
 <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
+        <div class="container">
+            <div class="logo">
                 <i class="fas fa-mask"></i>
                 <span>Virtual Try-On</span>
             </div>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a href="{% url 'home' %}" class="nav-link">
+            <ul class="nav-links">
+                <li>
+                    <a href="{% url 'home' %}">
                         <i class="fas fa-home"></i> Home
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="{% url 'tryron' %}" class="nav-link">
+                <li>
+                    <a href="{% url 'tryron' %}">
                         <i class="fas fa-camera"></i> Try On
                     </a>
                 </li>
@@ -51,8 +51,8 @@
     </main>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-container">
+    <footer>
+        <div class="container">
             <p>&copy; 2025 Virtual Try-On Booth. Powered by AI & AR Technology.</p>
         </div>
     </footer>

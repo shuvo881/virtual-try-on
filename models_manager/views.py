@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -189,3 +189,46 @@ class ModelCollectionViewSet(viewsets.ModelViewSet):
                 {'error': 'Model not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_models_by_category(request):
+    """
+    List models grouped by category for the frontend
+    """
+    try:
+        categories = AccessoryCategory.objects.filter(is_active=True).prefetch_related('models')
+        result = {
+            'success': True,
+            'models': {}
+        }
+
+        for category in categories:
+            active_models = category.models.filter(is_active=True)
+            models_data = []
+
+            for model in active_models:
+                model_data = {
+                    'id': str(model.id),
+                    'name': model.name,
+                    'description': model.description,
+                    'file_url': request.build_absolute_uri(model.model_file.url) if model.model_file else None,
+                    'thumbnail_url': request.build_absolute_uri(model.thumbnail.url) if model.thumbnail else None,
+                    'file_size_mb': model.file_size_mb,
+                    'default_transform': model.default_transform,
+                    'tags': model.tags,
+                    'is_featured': model.is_featured,
+                    'average_rating': model.average_rating
+                }
+                models_data.append(model_data)
+
+            result['models'][category.slug] = models_data
+
+        return Response(result)
+
+    except Exception as e:
+        logger.error(f"Error listing models: {e}")
+        return Response(
+            {'success': False, 'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

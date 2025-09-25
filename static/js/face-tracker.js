@@ -52,8 +52,20 @@ class DjangoFaceTracker {
             const result = await response.json();
             
             if (result.success) {
-                this.lastDetection = result.landmarks;
-                return result.landmarks;
+                // Transform the API response to match frontend expectations
+                const landmarks = {
+                    left_eye: result.landmarks.left_eye_center,
+                    right_eye: result.landmarks.right_eye_center,
+                    nose_tip: result.landmarks.nose_tip,
+                    forehead: result.landmarks.forehead_center,
+                    chin: result.landmarks.chin_center,
+                    face_width: result.measurements.face_width,
+                    face_height: result.measurements.face_height,
+                    confidence: result.confidence
+                };
+
+                this.lastDetection = landmarks;
+                return landmarks;
             } else {
                 this.lastDetection = null;
                 return null;

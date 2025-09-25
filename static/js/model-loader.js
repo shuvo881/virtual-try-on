@@ -1,10 +1,25 @@
 class DjangoModelLoader {
     constructor() {
-        this.loader = new THREE.GLTFLoader();
+        // Handle different ways GLTFLoader might be available
+        try {
+            if (typeof THREE.GLTFLoader !== 'undefined') {
+                this.loader = new THREE.GLTFLoader();
+            } else if (typeof GLTFLoader !== 'undefined') {
+                this.loader = new GLTFLoader();
+            } else {
+                console.warn('GLTFLoader not found. Using fallback to simple models only.');
+                this.loader = null;
+            }
+        } catch (error) {
+            console.warn('Error creating GLTFLoader:', error, 'Using fallback to simple models only.');
+            this.loader = null;
+        }
+
         this.loadedModels = new Map();
         this.availableModels = {};
         this.csrfToken = this.getCsrfToken();
         this.currentCategory = 'glasses';
+        this.simpleModelGenerator = new SimpleModelGenerator();
     }
     
     getCsrfToken() {
@@ -28,11 +43,21 @@ class DjangoModelLoader {
             const result = await response.json();
             
             if (result.success) {
-                this.availableModels = result.models;
-                return result.models;
+                // If no models are available from the server, use simple models
+                if (Object.keys(result.models).length === 0 ||
+                    (result.models.glasses && result.models.glasses.length === 0 &&
+                     result.models.hats && result.models.hats.length === 0)) {
+                    console.log('No server models found, using simple geometric models');
+                    this.availableModels = this.simpleModelGenerator.getAvailableModels();
+                } else {
+                    this.availableModels = result.models;
+                }
+                return this.availableModels;
             } else {
                 console.error('Failed to load models:', result.error);
-                return {};
+                // Fallback to simple models
+                this.availableModels = this.simpleModelGenerator.getAvailableModels();
+                return this.availableModels;
             }
         } catch (error) {
             console.error('Error loading models:', error);
@@ -40,11 +65,29 @@ class DjangoModelLoader {
         }
     }
     
-    async loadModel(modelUrl) {
+    async loadModel(modelUrl, modelId = null) {
+        // Check if this is a simple model (no URL)
+        if (!modelUrl && modelId) {
+            const simpleModel = this.simpleModelGenerator.getModel(modelId);
+            if (simpleModel) {
+                return simpleModel;
+            }
+        }
+
         if (this.loadedModels.has(modelUrl)) {
             return this.loadedModels.get(modelUrl).clone();
         }
-        
+
+        // If no GLTFLoader available, fall back to simple models
+        if (!this.loader) {
+            console.warn('GLTFLoader not available, using simple model fallback');
+            const simpleModel = this.simpleModelGenerator.getModel(modelId || 'glasses_1');
+            if (simpleModel) {
+                return simpleModel;
+            }
+            throw new Error('No model loader available and no simple model found');
+        }
+
         return new Promise((resolve, reject) => {
             this.loader.load(
                 modelUrl,
@@ -59,7 +102,13 @@ class DjangoModelLoader {
                 },
                 (error) => {
                     console.error('Error loading model:', error);
-                    reject(error);
+                    // Fall back to simple model on error
+                    const simpleModel = this.simpleModelGenerator.getModel(modelId || 'glasses_1');
+                    if (simpleModel) {
+                        resolve(simpleModel);
+                    } else {
+                        reject(error);
+                    }
                 }
             );
         });
@@ -176,12 +225,19 @@ class DjangoModelLoader {
             
             modelElement.addEventListener('click', () => {
                 // Remove active class from all models
-                container.querySelectorAll('.model-item').forEach(item => 
-                    item.classList.remove('active')
-                );
-                // Add active class to clicked model
-                modelElement.classList.add('active');
-                
+                container.querySelectorAll('.model-item').forEach(item => {
+                    item.classList.remove('active', 'selected');
+                });
+
+                // Add active class to clicked model with animation
+                modelElement.classList.add('active', 'selected');
+
+                // Add fade-in animation to the element
+                modelElement.classList.add('fade-in');
+                setTimeout(() => {
+                    modelElement.classList.remove('fade-in');
+                }, 500);
+
                 // Trigger model selection event
                 const event = new CustomEvent('modelSelected', {
                     detail: {
