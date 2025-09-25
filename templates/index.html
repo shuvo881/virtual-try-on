@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <div class="hero-content">
+            <h1>Welcome to Virtual Try-On Booth</h1>
+            <p>Experience the future of online shopping with AI-powered virtual try-on technology. Try on glasses, hats, and accessories in real-time using your camera!</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <h3>🤖 AI-Powered</h3>
+                    <p>Advanced face detection and tracking using MediaPipe</p>
+                </div>
+                <div class="feature">
+                    <h3>🎯 Real-time</h3>
+                    <p>Instant try-on experience with 3D models</p>
+                </div>
+                <div class="feature">
+                    <h3>📱 Cross-platform</h3>
+                    <p>Works on desktop and mobile browsers</p>
+                </div>
+            </div>
+            
+            <a href="{% url 'tryron' %}" class="cta-button">Start Trying On!</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
