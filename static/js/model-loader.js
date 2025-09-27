@@ -13,22 +13,40 @@ class DjangoModelLoader {
     }
 
     initializeGLTFLoader() {
-        try {
-            // Check for GLTFLoader in different ways it might be available
-            if (window.THREE && window.THREE.GLTFLoader) {
-                this.loader = new THREE.GLTFLoader();
-                console.log('GLTFLoader initialized successfully');
-            } else if (window.GLTFLoader) {
-                this.loader = new GLTFLoader();
-                console.log('GLTFLoader initialized successfully');
-            } else {
-                console.warn('GLTFLoader not found. Using fallback to simple models only.');
-                this.loader = null;
+        // Try multiple times with increasing delays to ensure scripts are loaded
+        const tryInitialize = (attempt = 0) => {
+            try {
+                // Check for GLTFLoader in different ways it might be available
+                if (window.THREE && window.THREE.GLTFLoader) {
+                    this.loader = new THREE.GLTFLoader();
+                    console.log('GLTFLoader initialized successfully via THREE.GLTFLoader');
+                    return true;
+                } else if (window.GLTFLoader) {
+                    this.loader = new GLTFLoader();
+                    console.log('GLTFLoader initialized successfully via GLTFLoader');
+                    return true;
+                } else if (attempt < 5) {
+                    // Try again after a delay
+                    setTimeout(() => tryInitialize(attempt + 1), 200 * (attempt + 1));
+                    return false;
+                } else {
+                    console.warn('GLTFLoader not found after multiple attempts. Using fallback to simple models only.');
+                    this.loader = null;
+                    return false;
+                }
+            } catch (error) {
+                if (attempt < 5) {
+                    setTimeout(() => tryInitialize(attempt + 1), 200 * (attempt + 1));
+                    return false;
+                } else {
+                    console.warn('Error creating GLTFLoader after multiple attempts:', error, 'Using fallback to simple models only.');
+                    this.loader = null;
+                    return false;
+                }
             }
-        } catch (error) {
-            console.warn('Error creating GLTFLoader:', error, 'Using fallback to simple models only.');
-            this.loader = null;
-        }
+        };
+
+        tryInitialize();
     }
     
     getCsrfToken() {
@@ -97,7 +115,12 @@ class DjangoModelLoader {
         // If no GLTFLoader available, fall back to simple models
         if (!this.loader) {
             console.warn('GLTFLoader not available, using simple model fallback');
-            const simpleModel = this.simpleModelGenerator.getModel(modelId || 'glasses_1');
+            let simpleModel = this.simpleModelGenerator.getModel(modelId || 'glasses_1');
+            if (!simpleModel) {
+                // If no specific model found, create a default glasses model
+                console.log('Creating default glasses model for uploaded file');
+                simpleModel = this.simpleModelGenerator.createGlassesModel();
+            }
             if (simpleModel) {
                 return simpleModel;
             }
@@ -213,14 +236,17 @@ class DjangoModelLoader {
     
     renderModelsGrid(container, category = null) {
         if (!container) return;
-        
+
         const targetCategory = category || this.currentCategory;
         const models = this.availableModels[targetCategory] || [];
-        
+
+        console.log('Rendering models grid for category:', targetCategory, 'Models:', models);
+
         container.innerHTML = '';
-        
+
         if (models.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #ccc;">No models available</p>';
+            container.innerHTML = '<p style="text-align: center; color: #ccc;">No models available for ' + targetCategory + '</p>';
+            console.log('No models found for category:', targetCategory);
             return;
         }
         

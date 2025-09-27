@@ -56,7 +56,10 @@ class DjangoVirtualTryOnApp {
         this.threeCanvas.style.top = '0';
         this.threeCanvas.style.left = '0';
         this.threeCanvas.style.pointerEvents = 'none';
+        this.threeCanvas.style.zIndex = '10'; // Ensure it's on top
         this.canvas.parentNode.appendChild(this.threeCanvas);
+
+        console.log('Three.js canvas created and added to DOM:', this.threeCanvas);
         
         this.renderer = new THREE.WebGLRenderer({ 
             canvas: this.threeCanvas, 
@@ -74,7 +77,7 @@ class DjangoVirtualTryOnApp {
         
         this.scene.add(ambientLight);
         this.scene.add(directionalLight);
-        
+
         this.camera.position.z = 5;
     }
     
@@ -141,16 +144,42 @@ class DjangoVirtualTryOnApp {
     async selectModel(model, category) {
         try {
             this.updateStatus(`Loading ${model.name}...`);
+            console.log('Selecting model:', model.name, 'Category:', category, 'URL:', model.file_url);
+
             const threeModel = await this.modelLoader.loadModel(model.file_url, model.id);
+            console.log('Model loaded successfully:', threeModel);
 
             if (this.currentModels[category]) {
                 this.scene.remove(this.currentModels[category]);
+                console.log('Removed previous model from category:', category);
             }
 
             this.currentModels[category] = threeModel;
             this.scene.add(threeModel);
+            console.log('Added model to scene. Current models:', this.currentModels);
 
-            this.updateStatus(`${model.name} loaded successfully!`);
+            // Make sure the model is visible by setting initial position
+            if (category === 'glasses') {
+                // Position glasses in front of camera and make them larger
+                threeModel.position.set(0, 0, -3);
+                threeModel.scale.set(2, 2, 2);
+                console.log('Set glasses initial position and scale:', threeModel.position, threeModel.scale);
+            } else if (category === 'hats') {
+                threeModel.position.set(0, 0.5, -3);
+                threeModel.scale.set(2, 2, 2);
+            }
+
+            this.updateStatus(`${model.name} loaded successfully! Look at the camera to see it positioned on your face.`);
+
+            // Test: Make model visible immediately for debugging
+            setTimeout(() => {
+                if (category === 'glasses' && threeModel) {
+                    threeModel.position.set(0, 0, -3);
+                    threeModel.scale.set(3, 3, 3);
+                    threeModel.visible = true;
+                    console.log('Force showing model for testing:', threeModel);
+                }
+            }, 1000);
         } catch (error) {
             console.error(`Error loading model:`, error);
             this.updateStatus(`Error loading ${model.name}: ${error.message}`);
@@ -246,9 +275,11 @@ class DjangoVirtualTryOnApp {
                 // Clear canvas and draw video frame
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-                
+
                 // Render 3D models
                 this.renderer.render(this.scene, this.camera);
+
+                // Render 3D models silently
             }
             
             if (this.isTracking) {
@@ -301,7 +332,7 @@ class DjangoVirtualTryOnApp {
         // Convert screen coordinates to 3D world coordinates
         const x = (position.x / this.canvas.width) * 4 - 2;
         const y = -((position.y / this.canvas.height) * 4 - 2);
-        const z = -2; // Fixed distance from camera
+        const z = -3; // Move further from camera for better visibility
 
         model.position.set(
             x + this.settings.positionX * 0.02,
@@ -309,14 +340,22 @@ class DjangoVirtualTryOnApp {
             z
         );
 
-        // Scale based on face width and user settings
-        const baseScale = Math.max(faceWidth / 300, 0.5);
-        const scale = baseScale * this.settings.scale;
+        // Scale based on face width and user settings - make it larger
+        const baseScale = Math.max(faceWidth / 200, 1.0); // Increased minimum scale
+        const scale = baseScale * this.settings.scale * 2; // Double the scale
         model.scale.set(scale, scale, scale);
 
         // Apply face rotation if available
         if (position.rotation !== undefined) {
             model.rotation.z = position.rotation;
+        }
+
+        // Debug positioning (very rarely to avoid spam)
+        if (Math.random() < 0.001) { // 0.1% of the time
+            console.log('Glasses positioned at:', {
+                position: {x: model.position.x.toFixed(2), y: model.position.y.toFixed(2), z: model.position.z.toFixed(2)},
+                scale: model.scale.x.toFixed(2)
+            });
         }
     }
     
