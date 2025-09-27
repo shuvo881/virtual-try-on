@@ -1,11 +1,26 @@
 class DjangoModelLoader {
     constructor() {
-        // Handle different ways GLTFLoader might be available
+        // Initialize loader as null, will be set up later
+        this.loader = null;
+        this.loadedModels = new Map();
+        this.availableModels = {};
+        this.csrfToken = this.getCsrfToken();
+        this.currentCategory = 'glasses';
+        this.simpleModelGenerator = new SimpleModelGenerator();
+
+        // Set up GLTFLoader after a short delay to ensure scripts are loaded
+        setTimeout(() => this.initializeGLTFLoader(), 100);
+    }
+
+    initializeGLTFLoader() {
         try {
-            if (typeof THREE.GLTFLoader !== 'undefined') {
+            // Check for GLTFLoader in different ways it might be available
+            if (window.THREE && window.THREE.GLTFLoader) {
                 this.loader = new THREE.GLTFLoader();
-            } else if (typeof GLTFLoader !== 'undefined') {
+                console.log('GLTFLoader initialized successfully');
+            } else if (window.GLTFLoader) {
                 this.loader = new GLTFLoader();
+                console.log('GLTFLoader initialized successfully');
             } else {
                 console.warn('GLTFLoader not found. Using fallback to simple models only.');
                 this.loader = null;
@@ -14,15 +29,16 @@ class DjangoModelLoader {
             console.warn('Error creating GLTFLoader:', error, 'Using fallback to simple models only.');
             this.loader = null;
         }
-
-        this.loadedModels = new Map();
-        this.availableModels = {};
-        this.csrfToken = this.getCsrfToken();
-        this.currentCategory = 'glasses';
-        this.simpleModelGenerator = new SimpleModelGenerator();
     }
     
     getCsrfToken() {
+        // Try to get CSRF token from meta tag first
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            return metaToken.getAttribute('content');
+        }
+
+        // Fallback to cookie
         const cookies = document.cookie.split(';');
         for (let cookie of cookies) {
             const [name, value] = cookie.trim().split('=');

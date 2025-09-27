@@ -12,4 +12,5 @@ app_name = 'models_manager'
 urlpatterns = [
     path('', include(router.urls)),
     path('list/', views.list_models_by_category, name='list_models'),
+    path('upload/', views.upload_model, name='upload_model'),
 ]

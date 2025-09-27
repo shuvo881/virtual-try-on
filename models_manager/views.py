@@ -190,6 +190,75 @@ class ModelCollectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def upload_model(request):
+    """
+    Upload a new 3D model
+    """
+    try:
+        # Get form data
+        name = request.data.get('name')
+        category_slug = request.data.get('category')
+        description = request.data.get('description', '')
+        model_file = request.FILES.get('model_file')
+
+        if not name or not category_slug or not model_file:
+            return Response(
+                {'success': False, 'error': 'Name, category, and model file are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get category
+        try:
+            category = AccessoryCategory.objects.get(slug=category_slug, is_active=True)
+        except AccessoryCategory.DoesNotExist:
+            return Response(
+                {'success': False, 'error': 'Category not found'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file extension
+        file_extension = model_file.name.split('.')[-1].lower()
+        if file_extension not in ['glb', 'gltf']:
+            return Response(
+                {'success': False, 'error': 'Only .glb and .gltf files are supported'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create model
+        model = AccessoryModel.objects.create(
+            name=name,
+            category=category,
+            description=description,
+            model_file=model_file,
+            upload_by=request.user if request.user.is_authenticated else None
+        )
+
+        # Return model data
+        model_data = {
+            'id': str(model.id),
+            'name': model.name,
+            'description': model.description,
+            'file_url': request.build_absolute_uri(model.model_file.url),
+            'file_size_mb': model.file_size_mb,
+            'default_transform': model.default_transform,
+            'category': category.slug
+        }
+
+        return Response({
+            'success': True,
+            'message': 'Model uploaded successfully',
+            'model': model_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error uploading model: {e}")
+        return Response(
+            {'success': False, 'error': 'Upload failed'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def list_models_by_category(request):
