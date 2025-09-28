@@ -63,13 +63,9 @@ A real-time AR virtual try-on application that allows users to try on glasses, h
    - Choose between "Glasses" and "Hats" tabs
    - Click on any model to try it on
 
-4. **Adjust Settings**:
-   - Use the scale slider to resize accessories
-   - Adjust X/Y position for fine-tuning placement
+4. **Take Photos**: Click "📸 Take Photo" to capture and download your virtual try-on
 
-5. **Take Photos**: Click "📸 Take Photo" to capture and download your virtual try-on
-
-6. **Upload Custom Models**: Use the upload section to add your own .glb/.gltf files
+5. **Upload Custom Models**: Use the upload section to add your own .glb/.gltf files
 
 ## 🏗️ Architecture
 
