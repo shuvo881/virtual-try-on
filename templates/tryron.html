@@ -79,41 +79,6 @@
                 </div>
             </div>
 
-            <!-- Settings Panel -->
-            <div class="panel settings-panel">
-                <div class="panel-header">
-                    <h3><i class="fas fa-sliders-h"></i> Adjustments</h3>
-                </div>
-
-                <div class="settings-content">
-                    <div class="setting-item">
-                        <label class="setting-label">
-                            <i class="fas fa-expand-arrows-alt"></i>
-                            Scale
-                            <span class="setting-value" id="scale-value">1.0</span>
-                        </label>
-                        <input type="range" id="scale-slider" class="setting-slider" min="0.5" max="2" step="0.1" value="1">
-                    </div>
-
-                    <div class="setting-item">
-                        <label class="setting-label">
-                            <i class="fas fa-arrows-alt-h"></i>
-                            Position X
-                            <span class="setting-value" id="pos-x-value">0</span>
-                        </label>
-                        <input type="range" id="pos-x-slider" class="setting-slider" min="-50" max="50" step="1" value="0">
-                    </div>
-
-                    <div class="setting-item">
-                        <label class="setting-label">
-                            <i class="fas fa-arrows-alt-v"></i>
-                            Position Y
-                            <span class="setting-value" id="pos-y-value">0</span>
-                        </label>
-                        <input type="range" id="pos-y-slider" class="setting-slider" min="-50" max="50" step="1" value="0">
-                    </div>
-                </div>
-            </div>
 
             <!-- Upload Panel -->
             <div class="panel upload-panel">
@@ -164,6 +129,8 @@
 {% block extra_js %}
 <script src="{% static 'js/simple-models.js' %}"></script>
 <script src="{% static 'js/face-tracker.js' %}"></script>
+<script src="{% static 'js/mediapipe-client.js' %}"></script>
+<script src="{% static 'js/hybrid-face-tracker.js' %}"></script>
 <script src="{% static 'js/model-loader.js' %}"></script>
 <script src="{% static 'js/tryron-app.js' %}"></script>
 {% endblock %}

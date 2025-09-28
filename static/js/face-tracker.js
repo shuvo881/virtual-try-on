@@ -52,16 +52,20 @@ class DjangoFaceTracker {
             const result = await response.json();
             
             if (result.success) {
-                // Transform the API response to match frontend expectations
+                // Use the comprehensive MediaPipe data including accessory positions
                 const landmarks = {
                     left_eye: result.landmarks.left_eye_center,
                     right_eye: result.landmarks.right_eye_center,
                     nose_tip: result.landmarks.nose_tip,
+                    nose_bridge: result.landmarks.nose_bridge,
                     forehead: result.landmarks.forehead_center,
                     chin: result.landmarks.chin_center,
                     face_width: result.measurements.face_width,
                     face_height: result.measurements.face_height,
-                    confidence: result.confidence
+                    eye_center: result.measurements.eye_center,
+                    confidence: result.confidence,
+                    orientation: result.orientation,
+                    accessory_positions: result.accessory_positions // This is the key improvement!
                 };
 
                 this.lastDetection = landmarks;

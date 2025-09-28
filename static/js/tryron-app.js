@@ -6,7 +6,7 @@ class DjangoVirtualTryOnApp {
         this.status = document.getElementById('status');
         this.faceInfo = document.getElementById('face-info');
         
-        this.faceTracker = new DjangoFaceTracker();
+        this.faceTracker = new HybridFaceTracker();
         this.modelLoader = new DjangoModelLoader();
         
         this.stream = null;
@@ -16,11 +16,7 @@ class DjangoVirtualTryOnApp {
             hats: null
         };
         
-        this.settings = {
-            scale: 1,
-            positionX: 0,
-            positionY: 0
-        };
+        // Automatic positioning using MediaPipe - no manual adjustments needed
         
         this.scene = null;
         this.camera = null;
@@ -95,25 +91,7 @@ class DjangoVirtualTryOnApp {
             });
         });
         
-        // Settings sliders
-        const scaleSlider = document.getElementById('scale-slider');
-        const posXSlider = document.getElementById('pos-x-slider');
-        const posYSlider = document.getElementById('pos-y-slider');
-        
-        scaleSlider.addEventListener('input', (e) => {
-            this.settings.scale = parseFloat(e.target.value);
-            document.getElementById('scale-value').textContent = e.target.value;
-        });
-        
-        posXSlider.addEventListener('input', (e) => {
-            this.settings.positionX = parseInt(e.target.value);
-            document.getElementById('pos-x-value').textContent = e.target.value;
-        });
-        
-        posYSlider.addEventListener('input', (e) => {
-            this.settings.positionY = parseInt(e.target.value);
-            document.getElementById('pos-y-value').textContent = e.target.value;
-        });
+        // Automatic positioning - no manual controls needed
         
         // Upload controls
         document.getElementById('upload-btn').addEventListener('click', () => this.handleModelUpload());
@@ -289,11 +267,14 @@ class DjangoVirtualTryOnApp {
         
         track();
         
-        // Start continuous face detection
+        // Add a test cube to verify 3D rendering is working
+        this.addTestCube();
+
+        // Start continuous face detection with MediaPipe
         this.faceTracker.startContinuousDetection(
-            this.video, 
+            this.video,
             (landmarks) => this.updateModels(landmarks),
-            200 // Detection every 200ms
+            100 // Detection every 100ms for smoother tracking
         );
     }
     
@@ -302,29 +283,92 @@ class DjangoVirtualTryOnApp {
             this.faceInfo.textContent = 'No face detected';
             return;
         }
-        
+
+        // Debug landmarks structure to understand what we're receiving
+        if (Math.random() < 0.1) { // 10% of the time
+            console.log('Received landmarks structure:', {
+                landmarks: landmarks,
+                keys: Object.keys(landmarks || {}),
+                left_eye: landmarks?.left_eye,
+                right_eye: landmarks?.right_eye,
+                face_width: landmarks?.face_width
+            });
+        }
+
         this.displayFaceInfo(landmarks);
         
-        // Update glasses position
+        // Update glasses position with improved manual calculation
         if (this.currentModels.glasses) {
+            // Check if we have valid eye landmarks
+            if (!landmarks.left_eye || !landmarks.right_eye) {
+                console.warn('Missing eye landmarks:', landmarks);
+                return;
+            }
+
+            // Ensure eye landmarks have x,y coordinates
+            if (typeof landmarks.left_eye.x === 'undefined' || typeof landmarks.right_eye.x === 'undefined') {
+                console.warn('Invalid eye landmark structure:', {
+                    left_eye: landmarks.left_eye,
+                    right_eye: landmarks.right_eye
+                });
+                return;
+            }
+
+            // Calculate eye center with safety checks
+            // Since video is flipped, we need to flip X coordinates
             const eyeCenter = {
-                x: (landmarks.left_eye.x + landmarks.right_eye.x) / 2,
-                y: (landmarks.left_eye.y + landmarks.right_eye.y) / 2,
-                z: (landmarks.left_eye.z + landmarks.right_eye.z) / 2
+                x: this.canvas.width - (landmarks.left_eye.x + landmarks.right_eye.x) / 2, // Flip X coordinate
+                y: (landmarks.left_eye.y + landmarks.right_eye.y) / 2 + 15, // Move down to nose bridge
+                z: ((landmarks.left_eye.z || 0) + (landmarks.right_eye.z || 0)) / 2
             };
-            
-            this.positionModel(this.currentModels.glasses, eyeCenter, landmarks.face_width * 0.8);
+
+            // Calculate eye distance for proper scaling
+            // Flip coordinates for distance calculation since video is flipped
+            const leftEyeFlipped = { x: this.canvas.width - landmarks.left_eye.x, y: landmarks.left_eye.y };
+            const rightEyeFlipped = { x: this.canvas.width - landmarks.right_eye.x, y: landmarks.right_eye.y };
+
+            const eyeDistance = Math.sqrt(
+                Math.pow(rightEyeFlipped.x - leftEyeFlipped.x, 2) +
+                Math.pow(rightEyeFlipped.y - leftEyeFlipped.y, 2)
+            );
+
+            // Use eye distance for more accurate scaling
+            const glassesScale = Math.max(eyeDistance * 1.8, 80); // Minimum 80px width
+
+            console.log('Glasses positioning:', {
+                eyeCenter: eyeCenter,
+                eyeDistance: eyeDistance,
+                scale: glassesScale,
+                faceWidth: landmarks.face_width,
+                landmarks: landmarks
+            });
+
+            this.positionModelImproved(this.currentModels.glasses, eyeCenter, glassesScale, landmarks.orientation);
         }
         
-        // Update hat position
+        // Update hat position using MediaPipe's precise accessory positioning
         if (this.currentModels.hats) {
-            const hatPosition = {
-                x: landmarks.forehead.x,
-                y: landmarks.forehead.y - 30,
-                z: landmarks.forehead.z
-            };
-            
-            this.positionModel(this.currentModels.hats, hatPosition, landmarks.face_width);
+            let hatPosition, hatScale;
+
+            if (landmarks.accessory_positions && landmarks.accessory_positions.hat) {
+                // Use MediaPipe's calculated hat position (flip X coordinate)
+                hatPosition = {
+                    x: this.canvas.width - landmarks.accessory_positions.hat.position.x,
+                    y: landmarks.accessory_positions.hat.position.y,
+                    z: landmarks.accessory_positions.hat.position.z
+                };
+                hatScale = landmarks.accessory_positions.hat.scale;
+            } else {
+                // Fallback to manual calculation (flip X coordinate)
+                hatPosition = {
+                    x: this.canvas.width - landmarks.forehead.x,
+                    y: landmarks.forehead.y - 30,
+                    z: landmarks.forehead.z || 0
+                };
+                hatScale = landmarks.face_width * 0.8;
+            }
+
+            this.positionModelWithPrecision(this.currentModels.hats, hatPosition, hatScale, landmarks.orientation);
         }
     }
     
@@ -332,17 +376,13 @@ class DjangoVirtualTryOnApp {
         // Convert screen coordinates to 3D world coordinates
         const x = (position.x / this.canvas.width) * 4 - 2;
         const y = -((position.y / this.canvas.height) * 4 - 2);
-        const z = -3; // Move further from camera for better visibility
+        const z = -2.5; // Optimal distance from camera
 
-        model.position.set(
-            x + this.settings.positionX * 0.02,
-            y + this.settings.positionY * 0.02,
-            z
-        );
+        model.position.set(x, y, z);
 
-        // Scale based on face width and user settings - make it larger
-        const baseScale = Math.max(faceWidth / 200, 1.0); // Increased minimum scale
-        const scale = baseScale * this.settings.scale * 2; // Double the scale
+        // Better scaling based on face width for glasses
+        const baseScale = Math.max(faceWidth / 400, 0.2); // Even smaller, more realistic scale
+        const scale = baseScale * 0.8; // Much more conservative scaling
         model.scale.set(scale, scale, scale);
 
         // Apply face rotation if available
@@ -350,18 +390,108 @@ class DjangoVirtualTryOnApp {
             model.rotation.z = position.rotation;
         }
 
-        // Debug positioning (very rarely to avoid spam)
-        if (Math.random() < 0.001) { // 0.1% of the time
-            console.log('Glasses positioned at:', {
-                position: {x: model.position.x.toFixed(2), y: model.position.y.toFixed(2), z: model.position.z.toFixed(2)},
-                scale: model.scale.x.toFixed(2)
+        // Debug positioning occasionally
+        if (Math.random() < 0.01) { // 1% of the time for debugging
+            console.log('Model positioned:', {
+                screenPos: {x: position.x.toFixed(0), y: position.y.toFixed(0)},
+                worldPos: {x: x.toFixed(2), y: y.toFixed(2), z: z.toFixed(2)},
+                faceWidth: faceWidth.toFixed(0),
+                scale: scale.toFixed(2)
             });
         }
     }
+
+    positionModelWithPrecision(model, position, scale, orientation) {
+        // Convert screen coordinates to 3D world coordinates
+        const x = (position.x / this.canvas.width) * 4 - 2;
+        const y = -((position.y / this.canvas.height) * 4 - 2);
+        const z = -2.5; // Optimal distance from camera
+
+        model.position.set(x, y, z);
+
+        // Use MediaPipe's calculated scale
+        const finalScale = Math.max(scale, 0.1); // Minimum scale for visibility
+        model.scale.set(finalScale, finalScale, finalScale);
+
+        // Apply MediaPipe's face orientation for realistic rotation
+        if (orientation) {
+            model.rotation.x = orientation.pitch || 0;
+            model.rotation.y = orientation.yaw || 0;
+            model.rotation.z = orientation.roll || 0;
+        }
+
+        // Debug MediaPipe positioning occasionally
+        if (Math.random() < 0.02) { // 2% of the time for debugging
+            console.log('MediaPipe Model positioned:', {
+                screenPos: {x: position.x.toFixed(0), y: position.y.toFixed(0)},
+                worldPos: {x: x.toFixed(2), y: y.toFixed(2), z: z.toFixed(2)},
+                scale: finalScale.toFixed(3),
+                orientation: orientation ? {
+                    pitch: orientation.pitch_degrees?.toFixed(1),
+                    yaw: orientation.yaw_degrees?.toFixed(1),
+                    roll: orientation.roll_degrees?.toFixed(1)
+                } : 'none'
+            });
+        }
+    }
+
+    positionModelImproved(model, position, scale, orientation) {
+        // Convert screen coordinates to 3D world coordinates with better mapping
+        const x = ((position.x / this.canvas.width) - 0.5) * 3; // Better range mapping
+        const y = -((position.y / this.canvas.height) - 0.5) * 3; // Better range mapping
+        const z = -1.8; // Closer to camera for better visibility
+
+        model.position.set(x, y, z);
+
+        // Improved scaling - make glasses much more visible
+        const baseScale = Math.max(scale / 150, 0.8); // Larger minimum scale
+        const finalScale = baseScale * 1.5; // Make them bigger
+        model.scale.set(finalScale, finalScale, finalScale);
+
+        // Apply face orientation if available
+        if (orientation) {
+            model.rotation.x = (orientation.pitch || 0) * 0.5; // Reduce rotation intensity
+            model.rotation.y = (orientation.yaw || 0) * 0.5;
+            model.rotation.z = (orientation.roll || 0) * 0.8;
+        }
+
+        // Always log positioning for debugging
+        console.log('Improved Model positioned:', {
+            screenPos: {x: position.x.toFixed(0), y: position.y.toFixed(0)},
+            worldPos: {x: x.toFixed(2), y: y.toFixed(2), z: z.toFixed(2)},
+            inputScale: scale,
+            finalScale: finalScale.toFixed(3),
+            canvasSize: {w: this.canvas.width, h: this.canvas.height}
+        });
+    }
+
+    addTestCube() {
+        // Add a visible test cube to verify 3D rendering
+        const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            wireframe: true
+        });
+        this.testCube = new THREE.Mesh(geometry, material);
+        this.testCube.position.set(1, 1, -2);
+        this.scene.add(this.testCube);
+
+        console.log('Test cube added to verify 3D rendering');
+
+        // Remove test cube after 5 seconds
+        setTimeout(() => {
+            if (this.testCube) {
+                this.scene.remove(this.testCube);
+                console.log('Test cube removed');
+            }
+        }, 5000);
+    }
     
     displayFaceInfo(landmarks) {
+        const source = landmarks.source || 'django';
+        const sourceIcon = source === 'client_mediapipe' ? '⚡' : '🌐';
         this.faceInfo.innerHTML = `
-            Face detected • Confidence: ${(landmarks.confidence * 100).toFixed(0)}% • Size: ${Math.round(landmarks.face_width)}×${Math.round(landmarks.face_height)}px
+            ${sourceIcon} Face detected • Confidence: ${(landmarks.confidence * 100).toFixed(0)}% • Size: ${Math.round(landmarks.face_width)}×${Math.round(landmarks.face_height)}px
         `;
     }
     
